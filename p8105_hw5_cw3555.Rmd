@@ -31,7 +31,6 @@ Load key packages.
 
 ```{r}
 library(tidyverse)
-library(rvest)
 ```
 
 Set seed for reproducibility.
@@ -47,7 +46,7 @@ set.seed(12345)
 
 ```{r}
 homicide_data=
-  read_csv("data/homicide-data.csv") |> 
+  read_csv("./homicide-data/homicide-data.csv") |> 
   janitor::clean_names()
 
 homicide_data
@@ -132,12 +131,65 @@ city_output |>
   labs(
     title= "Proportion of Unsolved Homicides by City",
     x="City",
-    y="Estimated Proportion of Unsolved Homicides")+
-  theme_minimal()
+    y="Estimated Proportion of Unsolved Homicides")
 ```
 
 We can see Chicago is the city with most unsolved homicides, whole Tulsa is the city with fewest unsolved homicides.
 
+### Problem 2
 
+#### Create a tidy dataframe containing data from all participants
+
+Start with a dataframe containing all file names
+```{r}
+names_df=
+  tibble(
+  files=list.files(path="study_data", full.names = TRUE, pattern=".csv")) 
+```
+
+Iterate over file names and read in data for each subject using purrr::map and saving the result as a new variable in the dataframe
+
+```{r}
+all_data=
+names_df |> 
+  mutate(data=map(files,read.csv))
+```
+
+Tidy the result; manipulate file names to include control arm and subject ID, make sure weekly observations are “tidy”, and do any other tidying that’s necessary
+
+```{r}
+tidied_data=
+  all_data |> 
+  mutate(
+    control_arm=ifelse(str_detect(files,"con"),"control","exprimental"),
+    subject_id=str_extract(files,"\\d+")
+  ) |> 
+  select(subject_id,control_arm, data) |> 
+  unnest(cols=c(data)) |> 
+  pivot_longer(
+    cols=starts_with("week"),
+    names_to ="week",
+    values_to ="observations"
+  ) |> 
+  mutate(
+    week=as.numeric(str_extract(week,"\\d+"))
+    )
+```
+
+#### Make a spaghetti plot and comment.
+
+```{r}
+tidied_data |> 
+  ggplot(aes(x=week, y=observations, color=subject_id)) +
+  geom_line(alpha=0.5)+
+  facet_wrap(.~control_arm)+
+  labs(
+    title="Observations on each subject over 8 weeks",
+    x="Week",
+    y="Observations"
+    )
+```
+
+From the plot, we can see that observations on each subject in experimental arm have an increasing trend over time while observation in control arm fluctuate, and does not have a trend of changing over time.
 
 
